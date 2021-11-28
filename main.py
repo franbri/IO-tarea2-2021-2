@@ -46,15 +46,11 @@ def fitness(order, matrix, dStand):
     for x in order:
         middleDist = 0
         for y in order[order.index(x) + 1 : len(order)]:
-            # print("x es ",x,", y es ",y,", la distancia es ", distance(x, y, order, dStand), ", numero magico:",matrix[x][y])
-            # fitness = fitness + matrix[x][y] * distance(x, y, order, dStand)
             fitness = fitness + matrix[x][y] * (
                 dStand[x] / 2 + middleDist + dStand[y] / 2
             )
             middleDist = middleDist + dStand[y]
-        # print(dist)
-    # print(str(order) + " tiene un fitness de :" + str(fitness))
-    # print(dist)
+
     return fitness
 
 
@@ -86,13 +82,9 @@ def genNearestNeighbour(nStand, dStand, matrix):
 # OUTPUT = hijo resultante 1 e hijo resultante 2
 ##############################################
 def crossover(order1, order2, matrix, dStand):
-    # print("this is P1" + str(order1))
-    # print("this is P2" + str(order2))
     points = [random.randint(0, len(order1)), random.randint(0, len(order1))]
-    # points.append(random.randint(0,len(order1)))
     order1 = list(order1[1])
     order2 = list(order2[1])
-
     s1 = ["x"] * len(order1)
     s2 = ["x"] * len(order1)
     for x in range(min(points), max(points)):
@@ -108,14 +100,16 @@ def crossover(order1, order2, matrix, dStand):
     for x in range(max(points), len(s1)):
         s1[x] = order2.pop(0)
         s2[x] = order1.pop(0)
-    # print("this is H1" + str(s1))
-    # print("this is H2" + str(s2))
     return (fitness(s1, matrix, dStand), tuple(s1)), (
         fitness(s2, matrix, dStand),
         tuple(s2),
     )
 
-
+##############################################
+# Funcion para mutar una solucion
+# INPUT = orden de solucion  y probabilidad de mutacion
+# OUTPUT = nueva solucion mutada
+##############################################
 def mutacion(order, prob, matrix, dStand):
     # si el numero random es menor la probabilidad no muta y se devuelve el orden
     # sin mutacion
@@ -126,10 +120,14 @@ def mutacion(order, prob, matrix, dStand):
     order[points[0]], order[points[1]] = order[points[1]], order[points[0]]
     return (fitness(order, matrix, dStand), tuple(order))
 
-
+##############################################
+# Funcion para mutar mas radical, por cada posicion en la solucion calcula una nueva posibilidad de mutar,
+# aumenta mucho las posibilidades de mutar comparada con la anterior, pero a su vez puede perder mejores soluciones al mutar
+# INPUT = orden de solucion  y probabilidad de mutacion
+# OUTPUT = nueva solucion mutada
+##############################################
 def mutacionPlus(order, prob, matrix, dStand):
-    # si el numero random es menor la probabilidad no muta y se devuelve el orden
-    # sin mutacion
+
     order = list(order[1])
     for x in range(len(order)):
         if random.random() < prob:
@@ -138,7 +136,13 @@ def mutacionPlus(order, prob, matrix, dStand):
             order[x], order[y] = order[y], order[x]
     return (fitness(order, matrix, dStand), tuple(order))
 
-
+##############################################
+# seleccion de candidatos a padres mediante el modelo de ruleta
+# notas = puede que las soluciones no esten ordenadas ni la suma del ezfuerzo normalizada
+# pero random.choices se encarga de calcular con probabilidades con peso en ezfuerzo
+# INPUT = lista de soluciones  y cantidad a devolver
+# OUTPUT = lista con las soluciones seleccionadas
+##############################################
 def roulette(solutions, count):
     solList = []
     fitList = []
@@ -146,25 +150,32 @@ def roulette(solutions, count):
     for x in solutions:
         # nota: el la probabilidad estara representada, pero las soluciones
         # no estaran en orden.
+        # usando el reciproco del ezfuerzo para dar mas posibilidades al menor esfuerzo
         fitList.append(1 / x[0])
         solList.append(x[1])
     for y in range(count):
-        # Fran arregla esta wea cuando empieces
         solutionSelected = random.choices(solList, fitList)
-        # print(solutionSelected)
         tempIndex = solList.index(solutionSelected[0])
         selected.append((fitList[tempIndex], solutionSelected[0]))
         solList.pop(tempIndex)
         fitList.pop(tempIndex)
     return selected
 
-
+##############################################
+# seleccion de candidatos de manera elitista
+# simplemente ordena la lista y retorna las mejores en la cantidad solicitada
+# INPUT = lista de soluciones y cantidad a retornar
+# OUTPUT = lista de soluciones seleccionada
+##############################################
 def bestSolutions(solutions, count):
     afitness = lambda x: x[0]
     return sorted(solutions, key=afitness, reverse=False)[0:count]
 
-
-# worker=0, mutationProb=0.1, nHijos=100, generationLimit=200
+##############################################
+# simulador genetico, esta es la que mas se asemeja al pseudocodigo
+# INPUT = instancia del problema, configuracion de la simulacion y id del worker para multiprocesamiento
+# OUTPUT = la mejor solucion junto con el id del trabajador
+##############################################
 def simulate(instance, configs, worker=0):
     print("starting ", worker)
     nStand, dStand, matrix = instance["nStand"], instance["dStand"], instance["matrix"]
@@ -200,7 +211,11 @@ def simulate(instance, configs, worker=0):
         generation = generation + 1
     return worker, solutions[0][0]
 
-
+##############################################
+# Wrapper para llamar al simulador usando multiprocessing y recuperar los datos de las ejecuciones
+# INPUT = instancia del problema, configuracion de la simulacion
+# OUTPUT = imprime por pantalla una tabla con los datos de las simulaciones
+##############################################
 def main(instance, configs):
     table = PrettyTable()
     tableStats = PrettyTable()
@@ -223,13 +238,13 @@ def main(instance, configs):
     print(table)
     print(tableStats)
 
-
+##############################################
+# guarda para poder ejecutar este script con multiprocesamiento en windows y mac
+##############################################
 if __name__ == "__main__":
     filename = "Instancias/QAP_sko56_04_n"
     nStand, dStand, matrix = extract_info(filename)
-
     instance = {"nStand": nStand, "dStand": tuple(dStand), "matrix": matrix}
-    #  print(data["matrix"])
     configs = {"generationLimit": 200, "mutationProb": 0.1, "nHijos": 100}
 
     main(instance, configs)
